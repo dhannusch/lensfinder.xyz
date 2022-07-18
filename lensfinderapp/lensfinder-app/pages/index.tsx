@@ -6,7 +6,7 @@ import commonNamesWords from '../public/common-names-and-words.json' assert {typ
 
 export default function LensFinder() {
 
-  const amountOfRandomHandles = 10
+  const amountOfRandomHandles = 6
 
   const validHandleRegex = RegExp(
     '([a-z\-\_0-9])'
@@ -21,12 +21,14 @@ export default function LensFinder() {
   const [searchError, setSearchError] = useState('')
   const [searchSuccess, setSearchSuccess] = useState('')
   const [refreshEffect, setRefreshEffect] = useState(false)
+  const [loadingRandomHandles, setLoadingRandomHandles] = useState(true)
 
   useEffect(() => {
     getRandomLensHandles(amountOfRandomHandles);
   }, []);
 
-  const isHandleAvailable = async (handle: string) => {
+  const isHandleAvailable = async (input: string) => {
+    const handle = input + '.lens';
     try {
       const response = await client.query(getProfiles, { handle }).toPromise()
       if (response.data.profile===null) {
@@ -65,13 +67,14 @@ export default function LensFinder() {
       setSearchError("Whoa buddy.. Handle must be minimum of 5 length and maximum of 31 length")
     } else {
       // Query lens
-      let response = await isHandleAvailable(lenshandle+'.lens')
+      let response = await isHandleAvailable(lenshandle)
       if (response) {
         setSearchError('')
         setLensAvailable(true)
         setSearchSuccess('Hey! '+lenshandle+'.lens is Available!')
         // alert("This handle is available!")
       } else {
+        setSearchSuccess('')
         setLensAvailable(false)
         setSearchError("Bummer... " + lenshandle + ".lens is not available.");
         // alert("This handle is not available :(")
@@ -79,21 +82,22 @@ export default function LensFinder() {
     }
   } 
 
-  const getRandomLensHandles = (amount: number) => {
+  const getRandomLensHandles = async (amount: number) => {
+    setLoadingRandomHandles(true)
     let randomNames : String[] = []
     let max = commonNamesWords.commonNamesAndWords.length;
     let count = 0;
-    let checkcount = 1;
     while(count < amount) {
       let random = Math.floor(Math.random() * (max - 0) + 0);
       let name = commonNamesWords.commonNamesAndWords[random].toLowerCase();
-      const response = isHandleAvailable(name);
+      const response = await isHandleAvailable(name);
       if(response) {
         randomNames.push(name);
         count++;
       }
     }
     setRandomAvailableHandles(randomNames);
+    setLoadingRandomHandles(false)
   }
 
   const refreshClick = async () => {
@@ -114,11 +118,14 @@ export default function LensFinder() {
       </div>
       <div className="relative flex flex-col justify-center overflow-hidden bg-gray-50 py-1 sm:py-2 ">
         <div className="mx-auto max-w-lg">
-          <form className="w-full max-w-lg pt-10" onSubmit={handleSubmit}>
+          <div className="text-center pt-10">
+            <span className="font-sans text-xl font-semi-bold">Find an available lens handle:</span>
+          </div>
+          <form className="w-full max-w-lg pt-3" onSubmit={handleSubmit}>
             <div className="flex items-center border-b border-green-500 py-2">
               <label>
-                <input className="appearance-none bg-transparent border-none w-full text-gray-700 mr-3 py-1 leading-tight focus:outline-none text-right lowercase" 
-                  type="text" value={lenshandle} placeholder="Find your lens handle   "
+                <input className="appearance-none bg-transparent border-none w-full text-gray-700 py-1 leading-tight focus:outline-none text-right lowercase" 
+                  type="text" value={lenshandle} placeholder="vitalik"
                   onChange={handleChange} />
               </label>
               <span className="flex-shrink-0 text-md font-bold py-1 pr-10">.lens</span>
@@ -149,19 +156,24 @@ export default function LensFinder() {
           <div className="divide-y divide-gray-300/50">
             <span className="p-4">Here's some random handles available:</span>
             <button type="button" onClick={refreshClick}
-                className="inline-flex items-center justify-center w-auto px-3 py-2 space-x-2 text-sm font-medium text-white transition 
+                className={`${loadingRandomHandles && 'invisible'} inline-flex items-center justify-center w-auto px-3 py-2 space-x-2 text-sm font-small text-white transition 
                   bg-violet-700 border border-violet-700 rounded appearance-none cursor-pointer select-none hover:border-violet-800 
                   hover:bg-violet-800 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300 
-                  disabled:pointer-events-none disabled:opacity-75">
-                <svg xmlns="http://www.w3.org/2000/svg" className={`${refreshEffect && 'animate-spin'} w-5 h-5`} onAnimationEnd={() => setRefreshEffect(false)} viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd"
-                        d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z"
-                        clipRule="evenodd" />
-                </svg>
+                  disabled:pointer-events-none disabled:opacity-75`}>
                 <span>Refresh</span>
             </button>
             <div className="space-y-6 py-8 text-base leading-7 text-gray-600">
-              <ul className="grid grid-cols-2 gap-2">
+            {
+              loadingRandomHandles && 
+              <div className="flex justify-center items-center">
+                <svg aria-hidden="true" className="mr-2 w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-green-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+                    <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0491C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="currentFill"/>
+                </svg>
+                <span className="sr-only">Loading...</span>
+              </div>
+            }
+              <ul className={`${loadingRandomHandles && `hidden`} grid grid-cols-2 gap-2`}>
                   {randomAvailableHandles.map((item:string, index:number) => 
                       <li className="flex items-center p-5 max-w-sm rounded overflow-hidden shadow-lg" key={index}>
                         <svg className="h-6 w-6 flex-none fill-green-100 stroke-green-500 stroke-2 animate-pulse" strokeLinecap="round" strokeLinejoin="round">
